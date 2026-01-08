@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imuno Defesa - Sobreviva às Hordas</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Menu Principal -->
+    <div id="menu-screen" class="screen active">
+        <div class="hero-section">
+            <div class="stars"></div>
+            <div class="menu-content">
+                <h1 class="game-title">
+                    <span class="title-glow">IMUNO DEFESA</span>
+                </h1>
+                <p class="game-subtitle">Proteja o Corpo Contra Invasores Microscópicos</p>
+                <div class="menu-buttons">
+                    <button id="start-btn" class="btn btn-primary">
+                        <span>Iniciar Jogo</span>
+                    </button>
+                    <button id="upgrades-btn" class="btn btn-secondary">
+                        <span>⚡ Upgrades</span>
+                    </button>
+                </div>
+                <div class="stats-display">
+                    <div class="stat-item">
+                        <span class="stat-icon">🧬</span>
+                        <span id="dna-count" class="stat-value">0</span>
+                        <span class="stat-label">DNA</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">⭐</span>
+                        <span id="total-xp" class="stat-value">0</span>
+                        <span class="stat-label">XP Total</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Upgrades -->
+    <div id="upgrades-screen" class="screen">
+        <div class="upgrades-content">
+            <h1 class="upgrades-title">Melhorias Permanentes</h1>
+
+            <div class="currency-display">
+                <div class="currency-item">
+                    <span class="currency-icon">⭐</span>
+                    <span id="upgrade-xp" class="currency-value">0</span>
+                    <span class="currency-label">XP</span>
+                </div>
+                <div class="currency-item dna">
+                    <span class="currency-icon">🧬</span>
+                    <span id="upgrade-dna" class="currency-value">0</span>
+                    <span class="currency-label">DNA</span>
+                </div>
+            </div>
+
+            <div class="upgrades-tabs">
+                <button class="tab-btn active" data-tab="basic">Upgrades Básicos</button>
+                <button class="tab-btn" data-tab="premium">Upgrades Premium</button>
+            </div>
+
+            <div id="basic-upgrades" class="upgrades-list active">
+                <!-- Upgrades básicos serão inseridos aqui via JS -->
+            </div>
+
+            <div id="premium-upgrades" class="upgrades-list">
+                <!-- Upgrades premium serão inseridos aqui via JS -->
+            </div>
+
+            <div class="upgrades-actions">
+                <button id="reset-btn" class="btn btn-danger">
+                    <span>🔄 Reset (Ganhar DNA)</span>
+                </button>
+                <button id="back-menu-btn" class="btn btn-secondary">
+                    <span>Voltar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Jogo -->
+    <div id="game-screen" class="screen">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-top">
+                <div class="stat-container">
+                    <div class="stat-label">HP</div>
+                    <div class="bar-container">
+                        <div id="hp-bar" class="bar hp-bar" style="width: 100%"></div>
+                        <span id="hp-text" class="bar-text">100 / 100</span>
+                    </div>
+                </div>
+                <div class="stat-container">
+                    <div class="stat-label">XP</div>
+                    <div class="bar-container">
+                        <div id="xp-bar" class="bar xp-bar" style="width: 0%"></div>
+                        <span id="xp-text" class="bar-text">0 / 100</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-info">
+                <div class="info-item">
+                    <span class="info-label">Nível</span>
+                    <span id="level-text" class="info-value">1</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tempo</span>
+                    <span id="timer-text" class="info-value">0:00</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Abates</span>
+                    <span id="kills-text" class="info-value">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Level Up -->
+    <div id="levelup-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="modal-title">🎉 SUBIU DE NÍVEL!</h2>
+            <p class="modal-subtitle">Escolha uma melhoria</p>
+            <div id="upgrades-container" class="upgrades-grid">
+                <!-- Upgrades serão inseridos aqui via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="gameover-screen" class="screen">
+        <div class="gameover-content">
+            <h1 class="gameover-title">GAME OVER</h1>
+            <div class="stats-panel">
+                <h3>Estatísticas Finais</h3>
+                <div class="stat-row">
+                    <span>Tempo Sobrevivido:</span>
+                    <span id="final-time" class="stat-value">0:00</span>
+                </div>
+                <div class="stat-row">
+                    <span>Inimigos Eliminados:</span>
+                    <span id="final-kills" class="stat-value">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Nível Alcançado:</span>
+                    <span id="final-level" class="stat-value">1</span>
+                </div>
+            </div>
+            <button id="restart-btn" class="btn btn-primary">
+                <span>Jogar Novamente</span>
+            </button>
+            <button id="menu-btn" class="btn btn-secondary">
+                <span>Menu Principal</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/progression.js"></script>
+    <script src="js/particle.js"></script>
+    <script src="js/projectile.js"></script>
+    <script src="js/enemy.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/upgrade.js"></script>
+    <script src="js/game.js"></script>
+</body>
+
+</html>
