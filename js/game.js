@@ -109,6 +109,23 @@ class Game {
             this.showAchievementsScreen();
         });
 
+        document.getElementById('stats-btn').addEventListener('click', () => {
+            this.showStatsScreen();
+        });
+
+        document.getElementById('back-stats-btn').addEventListener('click', () => {
+            this.showScreen('menu-screen');
+        });
+
+        // Seletor de Título
+        const titleSelect = document.getElementById('title-select');
+        if (titleSelect) {
+            titleSelect.addEventListener('change', (e) => {
+                this.achievementSystem.selectTitle(e.target.value);
+                this.updateMenuStats();
+            });
+        }
+
         // Botão Voltar do Upgrades
         document.getElementById('back-menu-btn').addEventListener('click', () => {
             this.showScreen('menu-screen');
@@ -161,6 +178,9 @@ class Game {
 
         // Aplicar upgrades permanentes
         this.progressionSystem.applyToPlayer(this.player);
+
+        // Aplicar Skin
+        this.player.updateSkin(this.achievementSystem);
 
         this.enemySpawner = new EnemySpawner(this.canvas.width, this.canvas.height);
         this.particleSystem.clear();
@@ -234,6 +254,18 @@ class Game {
         this.progressionSystem.addXP(this.player.xp);
         this.progressionSystem.updateStats(this.player.level, this.kills, this.gameTime);
 
+        // Salvar no histórico
+        this.progressionSystem.saveRun({
+            date: Date.now(),
+            time: this.gameTime,
+            kills: this.kills,
+            level: this.player.level,
+            xp: this.player.xp,
+            // Identificar arma principal (a de maior nível)
+            weapon: Object.entries(this.player.weapons)
+                .sort((a, b) => b[1].level - a[1].level)[0][0]
+        });
+
         // Atualizar estatísticas finais
         const minutes = Math.floor(this.gameTime / 60);
         const seconds = this.gameTime % 60;
@@ -249,6 +281,14 @@ class Game {
     updateMenuStats() {
         document.getElementById('dna-count').textContent = this.progressionSystem.data.dnaCoins;
         document.getElementById('total-xp').textContent = this.progressionSystem.data.totalXP;
+
+        // Atualizar Título no Menu
+        const title = this.achievementSystem.getSelectedTitle();
+        const titleElement = document.getElementById('player-title');
+        if (titleElement) {
+            titleElement.textContent = title ? `"${title}"` : '';
+            titleElement.style.display = title ? 'block' : 'none';
+        }
     }
 
     showUpgradesScreen() {
@@ -261,6 +301,53 @@ class Game {
         this.renderAchievements();
     }
 
+    showStatsScreen() {
+        this.showScreen('stats-screen');
+        this.renderStats();
+    }
+
+    renderStats() {
+        const data = this.progressionSystem.data;
+
+        // Renderizar Cards de Resumo
+        document.getElementById('stat-total-kills').textContent = data.totalKills.toLocaleString();
+        document.getElementById('stat-highest-level').textContent = data.highestLevel;
+        document.getElementById('stat-total-resets').textContent = data.totalResets;
+
+        const minutes = Math.floor(data.longestTime / 60);
+        const seconds = data.longestTime % 60;
+        document.getElementById('stat-longest-time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        // Renderizar Histórico
+        const historyList = document.getElementById('run-history-list');
+        historyList.innerHTML = '';
+
+        if (!data.runHistory || data.runHistory.length === 0) {
+            historyList.innerHTML = '<div style="text-align:center; padding: 2rem;">Nenhuma partida registrada ainda.</div>';
+            return;
+        }
+
+        data.runHistory.forEach(run => {
+            const date = new Date(run.date);
+            const formattedDate = `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+            const runMinutes = Math.floor(run.time / 60);
+            const runSeconds = run.time % 60;
+            const timeStr = `${runMinutes}:${runSeconds.toString().padStart(2, '0')}`;
+
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <span>${formattedDate}</span>
+                <span>${timeStr}</span>
+                <span>Nv. ${run.level}</span>
+                <span>💀 ${run.kills}</span>
+                <span>${run.weapon || '-'}</span>
+            `;
+            historyList.appendChild(item);
+        });
+    }
+
     renderAchievements() {
         const achievements = this.achievementSystem.getAchievementsList();
         const grid = document.getElementById('achievements-grid');
@@ -270,6 +357,9 @@ class Game {
         document.getElementById('unlocked-count').textContent = this.achievementSystem.getUnlockedCount();
         document.getElementById('total-count').textContent = this.achievementSystem.getTotalCount();
         document.getElementById('achievement-progress').textContent = this.achievementSystem.getProgress() + '%';
+
+        // Renderizar customização (Títulos e Skins)
+        this.renderCustomization();
 
         // Renderizar conquistas
         achievements.forEach(achievement => {
@@ -324,6 +414,59 @@ class Game {
         });
     }
 
+    renderCustomization() {
+        // --- Títulos ---
+        const titleSelect = document.getElementById('title-select');
+        if (titleSelect) {
+            const unlockedTitles = this.achievementSystem.getUnlockedTitles();
+            const selectedTitle = this.achievementSystem.getSelectedTitle();
+
+            titleSelect.innerHTML = '<option value="">Nenhum</option>';
+            unlockedTitles.forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                option.textContent = title;
+                if (title === selectedTitle) option.selected = true;
+                titleSelect.appendChild(option);
+            });
+        }
+
+        // --- Skins ---
+        const skinGrid = document.getElementById('skin-grid');
+        if (skinGrid) {
+            skinGrid.innerHTML = '';
+            const skins = this.achievementSystem.skins;
+            const selectedSkin = this.achievementSystem.getSelectedSkin();
+
+            Object.entries(skins).forEach(([id, skin]) => {
+                const isUnlocked = skin.unlocked;
+                const card = document.createElement('div');
+                card.className = 'skin-card' + (isUnlocked ? '' : ' locked') + (id === selectedSkin ? ' selected' : '');
+
+                if (isUnlocked) {
+                    card.onclick = () => {
+                        this.achievementSystem.selectSkin(id);
+                        this.renderCustomization();
+                        // Atualizar preview do jogador no menu se possível (opcional)
+                    };
+                }
+
+                const colorStyle = skin.gradient ?
+                    `background: linear-gradient(135deg, ${skin.gradient[0]}, ${skin.gradient[1]})` :
+                    `background-color: ${skin.color}`;
+
+                const glowStyle = skin.glow ? `box-shadow: 0 0 10px ${skin.color}` : '';
+
+                card.innerHTML = `
+                    <div class="skin-preview" style="${colorStyle}; ${glowStyle}"></div>
+                    <div class="skin-name">${skin.name}</div>
+                    ${!isUnlocked ? '<div style="font-size: 1.2rem; margin-top:5px">🔒</div>' : ''}
+                `;
+                skinGrid.appendChild(card);
+            });
+        }
+    }
+
     showAchievementNotification(achievement) {
         const notification = document.getElementById('achievement-notification');
         const icon = notification.querySelector('.achievement-icon');
@@ -349,10 +492,48 @@ class Game {
         // Mostrar notificação
         notification.classList.remove('hidden');
 
+        // Tocar som
+        const isRare = achievement.category === 'challenging' || achievement.category === 'secret';
+        this.playAchievementSound(isRare);
+
         // Auto-hide após 5 segundos
         setTimeout(() => {
             notification.classList.add('hidden');
         }, 5000);
+    }
+
+    playAchievementSound(isRare = false) {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+
+            const audioContext = new AudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Som diferente para conquistas raras
+            if (isRare) {
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.2);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.4);
+            } else {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(900, audioContext.currentTime + 0.15);
+            }
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (e) {
+            console.log('Áudio não disponível', e);
+        }
     }
 
 
@@ -513,7 +694,8 @@ class Game {
             this.canvas.width,
             this.canvas.height,
             this.enemySpawner.enemies,
-            this.particleSystem
+            this.particleSystem,
+            this.achievementSystem
         );
 
         // Verificar se matou inimigo
@@ -527,6 +709,12 @@ class Game {
             if (result.killed.type === 'boss') {
                 this.achievementSystem.updateStats('boss', 1);
             }
+
+            // Rastreamento para novas conquistas
+            if (result.killed.maxHealth) {
+                this.achievementSystem.updateStats('total_damage', result.killed.maxHealth);
+            }
+            this.achievementSystem.sessionStats.killsInLast10Seconds.push(Date.now());
 
             // Shake ao matar boss
             if (result.killed.type === 'boss') {

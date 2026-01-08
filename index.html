@@ -6,11 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imuno Defesa - Sobreviva às Hordas</title>
     <link rel="stylesheet" href="css/style.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a9eff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap"
         rel="stylesheet">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </head>
 
 <body>
@@ -23,6 +45,7 @@
                     <span class="title-glow">IMUNO DEFESA</span>
                 </h1>
                 <p class="game-subtitle">Proteja o Corpo Contra Invasores Microscópicos</p>
+                <div id="player-title" class="player-title"></div>
                 <div class="menu-buttons">
                     <button id="start-btn" class="btn btn-primary">
                         <span>Iniciar Jogo</span>
@@ -32,6 +55,9 @@
                     </button>
                     <button id="achievements-btn" class="btn btn-secondary">
                         <span>🏆 Conquistas</span>
+                    </button>
+                    <button id="stats-btn" class="btn btn-secondary">
+                        <span>📊 Estatísticas</span>
                     </button>
                 </div>
                 <div class="stats-display">
@@ -116,12 +142,74 @@
                 <button class="filter-btn" data-filter="unlocked">Desbloqueadas</button>
             </div>
 
+            <div class="customization-section">
+                <div class="customization-col">
+                    <h3>Seu Título</h3>
+                    <select id="title-select" class="custom-select">
+                        <option value="">Nenhum</option>
+                    </select>
+                </div>
+                <div class="customization-col">
+                    <h3>Skins Desbloqueadas</h3>
+                    <div id="skin-grid" class="skin-grid-mini">
+                        <!-- Skins via JS -->
+                    </div>
+                </div>
+            </div>
+
             <div id="achievements-grid" class="achievements-grid">
                 <!-- Conquistas inseridas via JS -->
             </div>
 
             <div class="achievements-actions">
                 <button id="back-achievements-btn" class="btn btn-secondary">
+                    <span>Voltar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Estatísticas -->
+    <div id="stats-screen" class="screen">
+        <div class="stats-content">
+            <h1 class="stats-title">Estatísticas de Combate</h1>
+
+            <div class="stats-grid">
+                <!-- Cards de Resumo -->
+                <div class="stats-summary-card">
+                    <h3>Total de Abates</h3>
+                    <div class="stat-big-value" id="stat-total-kills">0</div>
+                </div>
+                <div class="stats-summary-card">
+                    <h3>Maior Nível</h3>
+                    <div class="stat-big-value" id="stat-highest-level">0</div>
+                </div>
+                <div class="stats-summary-card">
+                    <h3>Tempo Recorde</h3>
+                    <div class="stat-big-value" id="stat-longest-time">00:00</div>
+                </div>
+                <div class="stats-summary-card">
+                    <h3>Total de Resets</h3>
+                    <div class="stat-big-value" id="stat-total-resets">0</div>
+                </div>
+            </div>
+
+            <div class="run-history-section">
+                <h2>Histórico de Partidas</h2>
+                <div class="history-list-header">
+                    <span>Data</span>
+                    <span>Tempo</span>
+                    <span>Nível</span>
+                    <span>Abates</span>
+                    <span>Arma</span>
+                </div>
+                <div id="run-history-list" class="run-history-list">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+
+            <div class="stats-actions">
+                <button id="back-stats-btn" class="btn btn-secondary">
                     <span>Voltar</span>
                 </button>
             </div>

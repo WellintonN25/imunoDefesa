@@ -2,7 +2,13 @@
 class AchievementSystem {
     constructor() {
         this.achievements = this.defineAchievements();
+        this.skins = this.defineSkins();
         this.loadProgress();
+        this.loadSkinProgress();
+
+        // Título e skin selecionados
+        this.selectedTitle = localStorage.getItem('selectedTitle') || '';
+        this.selectedSkin = localStorage.getItem('selectedSkin') || 'default';
 
         // Rastreamento de sessão atual
         this.sessionStats = {
@@ -15,7 +21,12 @@ class AchievementSystem {
             shotsHit: 0,
             shotsMissed: 0,
             upgradesChosen: [],
-            weaponTypes: new Set()
+            weaponTypes: new Set(),
+            totalDamage: 0,
+            weaponSwitches: 0,
+            perfectShots: 0,
+            startTime: 0,
+            killsInLast10Seconds: []
         };
     }
 
@@ -275,6 +286,148 @@ class AchievementSystem {
                 reward: { dna: 100, title: 'Lenda', skin: 'rainbow' },
                 hiddenName: 'Lenda',
                 hiddenDesc: 'Alcance nível 100'
+            },
+
+            // ========== CONQUISTAS RARAS ADICIONAIS ==========
+            perfect_warrior: {
+                id: 'perfect_warrior',
+                name: '???',
+                description: '???',
+                icon: '⚔️',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'perfect_accuracy', target: 1 },
+                reward: { dna: 50, title: 'Guerreiro Perfeito', skin: null },
+                hiddenName: 'Guerreiro Perfeito',
+                hiddenDesc: 'Complete uma partida sem errar nenhum tiro'
+            },
+            tornado: {
+                id: 'tornado',
+                name: '???',
+                description: '???',
+                icon: '🌪️',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'kills_in_10s', target: 50 },
+                reward: { dna: 40, title: 'Tornado', skin: null },
+                hiddenName: 'Tornado',
+                hiddenDesc: 'Elimine 50 inimigos em 10 segundos'
+            },
+            chameleon: {
+                id: 'chameleon',
+                name: '???',
+                description: '???',
+                icon: '🎭',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'weapon_switches', target: 20 },
+                reward: { dna: 30, title: 'Camaleão', skin: null },
+                hiddenName: 'Camaleão',
+                hiddenDesc: 'Mude de arma principal 20 vezes em uma partida'
+            },
+            supreme_collector: {
+                id: 'supreme_collector',
+                name: '???',
+                description: '???',
+                icon: '💎',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'xp', target: 10000 },
+                reward: { dna: 60, title: 'Colecionador Supremo', skin: null },
+                hiddenName: 'Colecionador Supremo',
+                hiddenDesc: 'Colete 10.000 XP em uma partida'
+            },
+            speedrun_master: {
+                id: 'speedrun_master',
+                name: '???',
+                description: '???',
+                icon: '⏰',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'speedrun', target: 30 },
+                reward: { dna: 50, title: 'Mestre do Speedrun', skin: null },
+                hiddenName: 'Mestre do Speedrun',
+                hiddenDesc: 'Alcance nível 30 em menos de 10 minutos'
+            },
+            marathoner: {
+                id: 'marathoner',
+                name: '???',
+                description: '???',
+                icon: '🏃',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'time', target: 1800 },
+                reward: { dna: 80, title: 'Maratonista', skin: null },
+                hiddenName: 'Maratonista',
+                hiddenDesc: 'Sobreviva 30 minutos'
+            },
+            street_fighter: {
+                id: 'street_fighter',
+                name: '???',
+                description: '???',
+                icon: '👊',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'bosses_no_magic', target: 5 },
+                reward: { dna: 45, title: 'Lutador de Rua', skin: null },
+                hiddenName: 'Lutador de Rua',
+                hiddenDesc: 'Derrote 5 bosses sem usar armas mágicas'
+            },
+            elite_pro: {
+                id: 'elite_pro',
+                name: '???',
+                description: '???',
+                icon: '🎯',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'perfect_5min', target: 300 },
+                reward: { dna: 70, title: 'Atirador de Elite Pro', skin: null },
+                hiddenName: 'Atirador de Elite Pro',
+                hiddenDesc: 'Mantenha 100% de precisão por 5 minutos'
+            },
+            destroyer: {
+                id: 'destroyer',
+                name: '???',
+                description: '???',
+                icon: '🔥',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'total_damage', target: 100000 },
+                reward: { dna: 55, title: 'Destruidor', skin: null },
+                hiddenName: 'Destruidor',
+                hiddenDesc: 'Cause 100.000 de dano total em uma partida'
+            },
+            absolute_master: {
+                id: 'absolute_master',
+                name: '???',
+                description: '???',
+                icon: '🌟',
+                category: 'secret',
+                secret: true,
+                unlocked: false,
+                progress: 0,
+                requirement: { type: 'all_achievements', target: 1 },
+                reward: { dna: 200, title: 'Mestre Absoluto', skin: null },
+                hiddenName: 'Mestre Absoluto',
+                hiddenDesc: 'Desbloqueie todas as outras conquistas'
             }
         };
     }
@@ -314,7 +467,12 @@ class AchievementSystem {
             shotsHit: 0,
             shotsMissed: 0,
             upgradesChosen: [],
-            weaponTypes: new Set()
+            weaponTypes: new Set(),
+            // New stats for rare achievements
+            killsInLast10Seconds: [],
+            weaponSwitches: 0,
+            startTime: Date.now(),
+            totalDamage: 0
         };
     }
 
@@ -423,6 +581,57 @@ class AchievementSystem {
                     achievement.progress = this.sessionStats.weaponTypes.size === 1 ?
                         Math.min(100, (this.sessionStats.level / achievement.requirement.target) * 100) : 0;
                     break;
+
+                // ========== NOVAS CONQUISTAS RARAS ==========
+
+                case 'perfect_accuracy':
+                    const totalShots2 = this.sessionStats.shotsHit + this.sessionStats.shotsMissed;
+                    shouldUnlock = totalShots2 > 0 && this.sessionStats.shotsMissed === 0 && this.sessionStats.level >= 10;
+                    achievement.progress = this.sessionStats.shotsMissed === 0 ? 100 : 0;
+                    break;
+
+                case 'kills_in_10s':
+                    const now = Date.now();
+                    const killsLog = this.sessionStats.killsInLast10Seconds || [];
+                    const recentKills = killsLog.filter(t => now - t < 10000);
+                    shouldUnlock = recentKills.length >= achievement.requirement.target;
+                    achievement.progress = Math.min(100, (recentKills.length / achievement.requirement.target) * 100);
+                    break;
+
+                case 'weapon_switches':
+                    shouldUnlock = this.sessionStats.weaponSwitches >= achievement.requirement.target;
+                    achievement.progress = Math.min(100, (this.sessionStats.weaponSwitches / achievement.requirement.target) * 100);
+                    break;
+
+                case 'speedrun':
+                    const elapsedMinutes = this.sessionStats.timeAlive / 60;
+                    shouldUnlock = this.sessionStats.level >= achievement.requirement.target && elapsedMinutes <= 10;
+                    achievement.progress = this.sessionStats.level >= achievement.requirement.target && elapsedMinutes <= 10 ? 100 : 0;
+                    break;
+
+                case 'bosses_no_magic':
+                    // Esta conquista precisa ser rastreada separadamente no game.js
+                    // Por enquanto, apenas verificamos se foi marcada manualmente
+                    break;
+
+                case 'perfect_5min':
+                    const totalShots3 = this.sessionStats.shotsHit + this.sessionStats.shotsMissed;
+                    const isPerfect = totalShots3 > 0 && this.sessionStats.shotsMissed === 0;
+                    shouldUnlock = this.sessionStats.timeAlive >= achievement.requirement.target && isPerfect;
+                    achievement.progress = isPerfect ? Math.min(100, (this.sessionStats.timeAlive / achievement.requirement.target) * 100) : 0;
+                    break;
+
+                case 'total_damage':
+                    shouldUnlock = this.sessionStats.totalDamage >= achievement.requirement.target;
+                    achievement.progress = Math.min(100, (this.sessionStats.totalDamage / achievement.requirement.target) * 100);
+                    break;
+
+                case 'all_achievements':
+                    const totalAchievements = Object.keys(this.achievements).length - 1; // Menos esta própria
+                    const unlockedCount = Object.values(this.achievements).filter(a => a.unlocked && a.id !== 'absolute_master').length;
+                    shouldUnlock = unlockedCount >= totalAchievements;
+                    achievement.progress = Math.min(100, (unlockedCount / totalAchievements) * 100);
+                    break;
             }
 
             if (shouldUnlock) {
@@ -480,6 +689,9 @@ class AchievementSystem {
         achievement.unlockedAt = Date.now();
         achievement.progress = 100;
 
+        // Desbloquear skin se houver
+        this.checkAndUnlockSkin(achievement);
+
         this.saveProgress();
         return achievement;
     }
@@ -512,5 +724,126 @@ class AchievementSystem {
             return 'Conquista secreta - descubra como desbloquear!';
         }
         return achievement.hiddenDesc || achievement.description;
+    }
+
+    defineSkins() {
+        return {
+            default: {
+                name: 'Padrão',
+                color: '#00f0ff',
+                unlocked: true
+            },
+            bronze: {
+                name: 'Bronze',
+                color: '#cd7f32',
+                unlocked: false
+            },
+            silver: {
+                name: 'Prata',
+                color: '#c0c0c0',
+                unlocked: false
+            },
+            golden: {
+                name: 'Dourado',
+                color: '#ffd700',
+                unlocked: false
+            },
+            neon: {
+                name: 'Neon',
+                color: '#00ff00',
+                glow: true,
+                unlocked: false
+            },
+            rainbow: {
+                name: 'Arco-íris',
+                gradient: ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3'],
+                unlocked: false
+            }
+        };
+    }
+
+    // ========== SISTEMA DE TÍTULOS ==========
+
+    getUnlockedTitles() {
+        const titles = [];
+        Object.values(this.achievements).forEach(achievement => {
+            if (achievement.unlocked && achievement.reward.title) {
+                titles.push(achievement.reward.title);
+            }
+        });
+        return titles;
+    }
+
+    selectTitle(title) {
+        const unlockedTitles = this.getUnlockedTitles();
+        if (title === '' || unlockedTitles.includes(title)) {
+            this.selectedTitle = title;
+            localStorage.setItem('selectedTitle', title);
+            return true;
+        }
+        return false;
+    }
+
+    getSelectedTitle() {
+        return this.selectedTitle;
+    }
+
+    // ========== SISTEMA DE SKINS ==========
+
+    unlockSkin(skinId) {
+        if (this.skins[skinId]) {
+            this.skins[skinId].unlocked = true;
+            this.saveSkinProgress();
+        }
+    }
+
+    getUnlockedSkins() {
+        const unlocked = [];
+        Object.keys(this.skins).forEach(skinId => {
+            if (this.skins[skinId].unlocked) {
+                unlocked.push(skinId);
+            }
+        });
+        return unlocked;
+    }
+
+    selectSkin(skinId) {
+        if (this.skins[skinId] && this.skins[skinId].unlocked) {
+            this.selectedSkin = skinId;
+            localStorage.setItem('selectedSkin', skinId);
+            return true;
+        }
+        return false;
+    }
+
+    getSelectedSkin() {
+        return this.skins[this.selectedSkin];
+    }
+
+    saveSkinProgress() {
+        const skinData = {};
+        Object.keys(this.skins).forEach(skinId => {
+            skinData[skinId] = this.skins[skinId].unlocked;
+        });
+        localStorage.setItem('unlockedSkins', JSON.stringify(skinData));
+    }
+
+    loadSkinProgress() {
+        const saved = localStorage.getItem('unlockedSkins');
+        if (saved) {
+            const skinData = JSON.parse(saved);
+            Object.keys(skinData).forEach(skinId => {
+                if (this.skins[skinId]) {
+                    this.skins[skinId].unlocked = skinData[skinId];
+                }
+            });
+        }
+    }
+
+    // Desbloquear skin ao desbloquear conquista
+    checkAndUnlockSkin(achievement) {
+        if (achievement.reward.skin) {
+            this.unlockSkin(achievement.reward.skin);
+        }
     }
 }

@@ -25,7 +25,10 @@ class ProgressionSystem {
                 doubleXP: 0,            // XP dobrado permanente
                 bossReward: 0,          // +50% recompensa de boss
                 immortalStart: 0        // 30s de invulnerabilidade no início
-            }
+            },
+
+            // Histórico de partidas
+            runHistory: []
         };
 
         this.load();
@@ -57,6 +60,20 @@ class ProgressionSystem {
         if (time > this.data.longestTime) {
             this.data.longestTime = time;
         }
+        this.save();
+    }
+
+    saveRun(runData) {
+        // Garantir que existe o array (para saves antigos)
+        if (!this.data.runHistory) this.data.runHistory = [];
+
+        this.data.runHistory.unshift(runData);
+
+        // Limitar a 20 entradas
+        if (this.data.runHistory.length > 20) {
+            this.data.runHistory = this.data.runHistory.slice(0, 20);
+        }
+
         this.save();
     }
 

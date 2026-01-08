@@ -44,6 +44,20 @@ class Player {
         this.pulseTimer = 0;
         this.trail = [];
         this.maxTrailLength = 15;
+
+        // Skin
+        this.skinColor = '#e8f0ff';
+        this.hasGlow = false;
+        this.gradient = null;
+    }
+
+    updateSkin(achievementSystem) {
+        const skin = achievementSystem.getSelectedSkin();
+        if (skin) {
+            this.skinColor = skin.color || '#e8f0ff';
+            this.hasGlow = skin.glow || false;
+            this.gradient = skin.gradient || null;
+        }
     }
 
     setTarget(x, y) {
@@ -51,7 +65,7 @@ class Player {
         this.targetY = y;
     }
 
-    update(canvasWidth, canvasHeight, enemies, particleSystem) {
+    update(canvasWidth, canvasHeight, enemies, particleSystem, achievementSystem) {
         // Movimento em direção ao cursor/toque
         const dx = this.targetX - this.x;
         const dy = this.targetY - this.y;
@@ -111,6 +125,9 @@ class Player {
 
             if (!proj.active) {
                 this.projectiles.splice(i, 1);
+                if (achievementSystem && !proj.hitTarget) {
+                    achievementSystem.updateStats('shot_miss', 1);
+                }
                 continue;
             }
 
@@ -121,7 +138,12 @@ class Player {
                 if (proj.checkCollision(enemy)) {
                     const died = enemy.takeDamage(proj.damage);
                     proj.active = false;
+                    proj.hitTarget = true;
                     particleSystem.createExplosion(enemy.x, enemy.y, proj.color, 8);
+
+                    if (achievementSystem) {
+                        achievementSystem.updateStats('shot_hit', 1);
+                    }
 
                     if (died) {
                         return { killed: enemy };
@@ -174,7 +196,7 @@ class Player {
             // Mirar DIRETAMENTE no inimigo
             this.projectiles.push(new Projectile(
                 this.x, this.y, closest.x, closest.y,
-                this.damage, 8, '#e8f0ff', 5, 'bullet'
+                this.damage, 8, this.skinColor, 5, 'bullet' // Usar cor da skin para projéteis básicos
             ));
         }
 
@@ -242,12 +264,15 @@ class Player {
                 const alpha = point.alpha * 0.3;
                 const size = this.size * 0.6;
 
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                // Trilha usa a cor da skin
+                ctx.fillStyle = this.gradient ? this.gradient[0] : this.skinColor;
+                ctx.globalAlpha = alpha;
                 ctx.beginPath();
                 ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
                 ctx.fill();
             });
         }
+        ctx.globalAlpha = 1;
 
         // Piscar quando invulnerável
         if (this.invulnerable > 0 && Math.floor(this.invulnerable / 5) % 2 === 0) {
@@ -258,37 +283,52 @@ class Player {
         ctx.translate(this.x, this.y);
         ctx.scale(this.scale, this.scale);
 
-        // Brilho externo simplificado
-        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 2);
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
-        gradient.addColorStop(1, 'rgba(200, 220, 255, 0)');
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size * 2, 0, Math.PI * 2);
-        ctx.fill();
+        // Brilho externo (efeito Glow da skin)
+        if (this.hasGlow) {
+            const glowGradient = ctx.createRadialGradient(0, 0, this.size, 0, 0, this.size * 2.5);
+            glowGradient.addColorStop(0, this.skinColor);
+            glowGradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glowGradient;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
 
         // Corpo principal - círculo simples
-        ctx.fillStyle = '#e8f0ff';
+        if (this.gradient) {
+            const grad = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
+            this.gradient.forEach((color, i) => {
+                grad.addColorStop(i / (this.gradient.length - 1), color);
+            });
+            ctx.fillStyle = grad;
+        } else {
+            ctx.fillStyle = this.skinColor;
+        }
+
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ffffff';
+        ctx.shadowColor = this.hasGlow ? this.skinColor : '#ffffff';
         ctx.beginPath();
         ctx.arc(0, 0, this.size, 0, Math.PI * 2);
         ctx.fill();
 
         // Membrana celular
-        ctx.strokeStyle = '#b8d0ff';
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5;
         ctx.stroke();
+        ctx.globalAlpha = 1;
 
-        // Núcleo simplificado
-        ctx.fillStyle = '#9db8e8';
+        // Núcleo
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.shadowBlur = 5;
         ctx.beginPath();
         ctx.arc(0, 0, this.size * 0.5, 0, Math.PI * 2);
         ctx.fill();
 
         // Organelas (apenas 2)
-        ctx.fillStyle = '#a0b8e0';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(this.size * 0.4, 0, this.size * 0.12, 0, Math.PI * 2);
