@@ -17,6 +17,7 @@ class Game {
         this.particleSystem = new ParticleSystem();
         this.upgradeSystem = new UpgradeSystem();
         this.progressionSystem = new ProgressionSystem();
+        this.achievementSystem = new AchievementSystem();
 
         // Entidades
         this.player = null;
@@ -33,6 +34,9 @@ class Game {
         // UI
         this.setupUI();
         this.updateMenuStats();
+
+        // Fila de notificações de conquistas
+        this.achievementQueue = [];
 
         // Iniciar loop
         this.lastTime = 0;
@@ -100,10 +104,20 @@ class Game {
             this.showUpgradesScreen();
         });
 
+        // Botão Conquistas
+        document.getElementById('achievements-btn').addEventListener('click', () => {
+            this.showAchievementsScreen();
+        });
+
         // Botão Voltar do Upgrades
         document.getElementById('back-menu-btn').addEventListener('click', () => {
             this.showScreen('menu-screen');
             this.updateMenuStats();
+        });
+
+        // Botão Voltar das Conquistas
+        document.getElementById('back-achievements-btn').addEventListener('click', () => {
+            this.showScreen('menu-screen');
         });
 
         // Botão Reset
@@ -150,6 +164,9 @@ class Game {
 
         this.enemySpawner = new EnemySpawner(this.canvas.width, this.canvas.height);
         this.particleSystem.clear();
+
+        // Resetar sessão de conquistas
+        this.achievementSystem.resetSession();
 
         // Mudar para tela de jogo
         this.showScreen('game-screen');
@@ -238,6 +255,106 @@ class Game {
         this.showScreen('upgrades-screen');
         this.renderUpgrades();
     }
+
+    showAchievementsScreen() {
+        this.showScreen('achievements-screen');
+        this.renderAchievements();
+    }
+
+    renderAchievements() {
+        const achievements = this.achievementSystem.getAchievementsList();
+        const grid = document.getElementById('achievements-grid');
+        grid.innerHTML = '';
+
+        // Atualizar estatísticas
+        document.getElementById('unlocked-count').textContent = this.achievementSystem.getUnlockedCount();
+        document.getElementById('total-count').textContent = this.achievementSystem.getTotalCount();
+        document.getElementById('achievement-progress').textContent = this.achievementSystem.getProgress() + '%';
+
+        // Renderizar conquistas
+        achievements.forEach(achievement => {
+            const card = document.createElement('div');
+            card.className = 'achievement-card' + (achievement.unlocked ? ' unlocked' : ' locked');
+            card.dataset.category = achievement.category;
+            card.dataset.unlocked = achievement.unlocked;
+
+            const name = this.achievementSystem.getDisplayName(achievement);
+            const desc = this.achievementSystem.getDisplayDescription(achievement);
+
+            let rewardText = '';
+            if (achievement.reward.dna) rewardText += `🧬 ${achievement.reward.dna} DNA `;
+            if (achievement.reward.title) rewardText += `🏆 Título: "${achievement.reward.title}" `;
+            if (achievement.reward.skin) rewardText += `🎨 Skin: ${achievement.reward.skin} `;
+
+            card.innerHTML = `
+                <div class="achievement-card-icon">${achievement.icon}</div>
+                <div class="achievement-card-content">
+                    <div class="achievement-card-name">${name}</div>
+                    <div class="achievement-card-desc">${desc}</div>
+                    ${!achievement.unlocked && !achievement.secret && achievement.progress > 0 ?
+                    `<div class="achievement-progress-bar">
+                            <div class="achievement-progress-fill" style="width: ${achievement.progress}%"></div>
+                            <span class="achievement-progress-text">${Math.floor(achievement.progress)}%</span>
+                        </div>` : ''}
+                    <div class="achievement-card-reward">${rewardText || 'Sem recompensa'}</div>
+                </div>
+                ${achievement.unlocked ? '<div class="achievement-unlocked-badge">✓</div>' : ''}
+            `;
+
+            grid.appendChild(card);
+        });
+
+        // Configurar filtros
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.achievement-card').forEach(card => {
+                    if (filter === 'all') {
+                        card.style.display = 'flex';
+                    } else if (filter === 'unlocked') {
+                        card.style.display = card.dataset.unlocked === 'true' ? 'flex' : 'none';
+                    } else {
+                        card.style.display = card.dataset.category === filter ? 'flex' : 'none';
+                    }
+                });
+            });
+        });
+    }
+
+    showAchievementNotification(achievement) {
+        const notification = document.getElementById('achievement-notification');
+        const icon = notification.querySelector('.achievement-icon');
+        const name = notification.querySelector('.achievement-name');
+        const reward = notification.querySelector('.achievement-reward');
+
+        icon.textContent = achievement.icon;
+        name.textContent = this.achievementSystem.getDisplayName(achievement);
+
+        let rewardText = '';
+        if (achievement.reward.dna) rewardText += `+${achievement.reward.dna} DNA `;
+        if (achievement.reward.title) rewardText += `Título: "${achievement.reward.title}" `;
+        if (achievement.reward.skin) rewardText += `Skin: ${achievement.reward.skin}`;
+        reward.textContent = rewardText;
+
+        // Aplicar recompensas
+        if (achievement.reward.dna) {
+            this.progressionSystem.data.dnaCoins += achievement.reward.dna;
+            this.progressionSystem.save();
+            this.updateMenuStats();
+        }
+
+        // Mostrar notificação
+        notification.classList.remove('hidden');
+
+        // Auto-hide após 5 segundos
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 5000);
+    }
+
 
     renderUpgrades() {
         const prog = this.progressionSystem;
@@ -367,6 +484,13 @@ class Game {
             const gained = prog.reset();
             this.renderUpgrades();
             this.updateMenuStats();
+
+            // Verificar conquistas globais
+            const unlockedAchievements = this.achievementSystem.checkGlobalAchievements(this.progressionSystem);
+            unlockedAchievements.forEach(achievement => {
+                this.showAchievementNotification(achievement);
+            });
+
             alert(`Reset completo!\n\nVocê ganhou 🧬 ${gained} DNA!`);
         }
     }
@@ -379,6 +503,9 @@ class Game {
         if (this.frameCount >= 60) {
             this.frameCount = 0;
             this.gameTime++;
+
+            // Atualizar conquistas de tempo
+            this.achievementSystem.updateStats('time', this.gameTime);
         }
 
         // Atualizar jogador
@@ -394,6 +521,12 @@ class Game {
             this.kills++;
             this.enemySpawner.dropXP(result.killed.x, result.killed.y, result.killed.xpValue);
             this.particleSystem.createBlood(result.killed.x, result.killed.y);
+
+            // Atualizar conquistas
+            this.achievementSystem.updateStats('kill', 1);
+            if (result.killed.type === 'boss') {
+                this.achievementSystem.updateStats('boss', 1);
+            }
 
             // Shake ao matar boss
             if (result.killed.type === 'boss') {
@@ -413,6 +546,7 @@ class Game {
         const oldLevel = this.player.level;
         const leveledUp = this.player.xp >= this.player.xpToNextLevel;
         if (leveledUp) {
+            this.achievementSystem.updateStats('level', this.player.level);
             this.handleLevelUp();
         }
 
@@ -421,6 +555,12 @@ class Game {
 
         // Atualizar partículas
         this.particleSystem.update();
+
+        // Verificar conquistas
+        const unlockedAchievements = this.achievementSystem.checkAchievements();
+        unlockedAchievements.forEach(achievement => {
+            this.showAchievementNotification(achievement);
+        });
 
         // Verificar game over
         if (this.player.health <= 0) {

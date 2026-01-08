@@ -7,6 +7,7 @@ class ProgressionSystem {
             highestLevel: 0,
             totalKills: 0,
             longestTime: 0,
+            totalResets: 0,
 
             // Upgrades permanentes básicos (comprados com XP acumulado)
             permanentUpgrades: {
@@ -72,6 +73,7 @@ class ProgressionSystem {
         this.data.highestLevel = 0;
         this.data.totalKills = 0;
         this.data.longestTime = 0;
+        this.data.totalResets++;
 
         this.save();
         return dnaGained;

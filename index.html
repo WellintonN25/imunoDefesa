@@ -30,6 +30,9 @@
                     <button id="upgrades-btn" class="btn btn-secondary">
                         <span>⚡ Upgrades</span>
                     </button>
+                    <button id="achievements-btn" class="btn btn-secondary">
+                        <span>🏆 Conquistas</span>
+                    </button>
                 </div>
                 <div class="stats-display">
                     <div class="stat-item">
@@ -83,6 +86,42 @@
                     <span>🔄 Reset (Ganhar DNA)</span>
                 </button>
                 <button id="back-menu-btn" class="btn btn-secondary">
+                    <span>Voltar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Conquistas -->
+    <div id="achievements-screen" class="screen">
+        <div class="achievements-content">
+            <h1 class="achievements-title">🏆 Conquistas</h1>
+
+            <div class="achievement-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Desbloqueadas:</span>
+                    <span class="stat-value"><span id="unlocked-count">0</span>/<span id="total-count">20</span></span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Progresso:</span>
+                    <span class="stat-value" id="achievement-progress">0%</span>
+                </div>
+            </div>
+
+            <div class="achievement-filters">
+                <button class="filter-btn active" data-filter="all">Todas</button>
+                <button class="filter-btn" data-filter="basic">Básicas</button>
+                <button class="filter-btn" data-filter="challenging">Desafiadoras</button>
+                <button class="filter-btn" data-filter="secret">Secretas</button>
+                <button class="filter-btn" data-filter="unlocked">Desbloqueadas</button>
+            </div>
+
+            <div id="achievements-grid" class="achievements-grid">
+                <!-- Conquistas inseridas via JS -->
+            </div>
+
+            <div class="achievements-actions">
+                <button id="back-achievements-btn" class="btn btn-secondary">
                     <span>Voltar</span>
                 </button>
             </div>
@@ -168,7 +207,20 @@
         </div>
     </div>
 
+    <!-- Notificação de Conquista -->
+    <div id="achievement-notification" class="achievement-notification hidden">
+        <div class="achievement-notification-content">
+            <span class="achievement-icon"></span>
+            <div class="achievement-info">
+                <div class="achievement-notification-title">🎉 Conquista Desbloqueada!</div>
+                <div class="achievement-name"></div>
+                <div class="achievement-reward"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="js/achievements.js"></script>
     <script src="js/progression.js"></script>
     <script src="js/particle.js"></script>
     <script src="js/projectile.js"></script>
