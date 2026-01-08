@@ -231,6 +231,25 @@ class Game {
         document.getElementById(screenId).classList.add('active');
     }
 
+    showSettingsScreen() {
+        this.showScreen('settings-screen');
+    }
+
+    showAchievementsScreen() {
+        this.showScreen('achievements-screen');
+        this.achievementSystem.renderAchievements('achievements-grid');
+    }
+
+    showUpgradesScreen() {
+        this.showScreen('upgrades-screen');
+        this.renderUpgrades();
+    }
+
+    showStatsScreen() {
+        this.showScreen('stats-screen');
+        this.renderStats();
+    }
+
     updateHUD() {
         // HP
         const hpPercent = (this.player.health / this.player.maxHealth) * 100;
