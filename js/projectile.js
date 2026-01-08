@@ -1,6 +1,10 @@
 // Sistema de Projéteis
 class Projectile {
     constructor(x, y, targetX, targetY, damage, speed, color, size = 5, type = 'bullet') {
+        this.reset(x, y, targetX, targetY, damage, speed, color, size, type);
+    }
+
+    reset(x, y, targetX, targetY, damage, speed, color, size = 5, type = 'bullet') {
         this.x = x;
         this.y = y;
         this.damage = damage;

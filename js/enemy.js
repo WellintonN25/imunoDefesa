@@ -1,6 +1,10 @@
 // Orbe de XP
 class XPOrb {
     constructor(x, y, value) {
+        this.reset(x, y, value);
+    }
+
+    reset(x, y, value) {
         this.x = x;
         this.y = y;
         this.value = value;
@@ -59,6 +63,10 @@ class XPOrb {
 // Inimigo
 class Enemy {
     constructor(x, y, type = 'basic') {
+        this.reset(x, y, type);
+    }
+
+    reset(x, y, type = 'basic') {
         this.x = x;
         this.y = y;
         this.type = type;
@@ -366,40 +374,51 @@ class EnemySpawner {
     constructor(canvasWidth, canvasHeight) {
         this.canvasWidth = canvasWidth;
         this.canvasHeight = canvasHeight;
-        this.enemies = [];
-        this.xpOrbs = [];
+
+        // Pooling systems
+        this.enemyPoolSize = 300;
+        this.enemies = new Array(this.enemyPoolSize).fill(null).map(() => {
+            const e = new Enemy(0, 0, 'basic');
+            e.active = false;
+            return e;
+        });
+
+        this.xpPoolSize = 300;
+        this.xpOrbs = new Array(this.xpPoolSize).fill(null).map(() => {
+            const x = new XPOrb(0, 0, 1);
+            x.active = false;
+            return x;
+        });
+
         this.spawnTimer = 0;
         this.spawnInterval = 120; // Frames entre spawns
         this.difficulty = 1;
     }
 
-    update(gameTime, player) {
+    update(gameTime, player, particleSystem) {
         // Aumentar dificuldade com o tempo
         this.difficulty = 1 + (gameTime / 30); // +1 de dificuldade a cada 30 segundos
 
         // Reduzir intervalo de spawn com o tempo
         this.spawnInterval = Math.max(30, 120 - Math.floor(gameTime / 10));
 
-        // Spawn de inimigos
+        // Spawn de inimigos baseada no tempo
         this.spawnTimer++;
         if (this.spawnTimer >= this.spawnInterval) {
             this.spawnTimer = 0;
-            this.spawnEnemy();
+            const type = Math.random() < Math.min(0.8, 0.1 + (gameTime / 600) * 0.1) ? 'runner' : 'basic';
+            this.spawnEnemy(type);
         }
 
-        // Spawn de boss a cada 2 minutos
-        if (gameTime > 0 && gameTime % 120 === 0) {
+        // Spawn de Boss
+        if (gameTime > 0 && gameTime % 1800 === 0 && this.spawnTimer === 0) { // 30 segundos
             this.spawnEnemy('boss');
         }
 
-        // Atualizar inimigos
-        for (let i = this.enemies.length - 1; i >= 0; i--) {
+        // Atualizar inimigos (Pool)
+        for (let i = 0; i < this.enemyPoolSize; i++) {
             const enemy = this.enemies[i];
-
-            if (!enemy.active) {
-                this.enemies.splice(i, 1);
-                continue;
-            }
+            if (!enemy.active) continue;
 
             const collision = enemy.update(player);
             if (collision) {
@@ -407,18 +426,17 @@ class EnemySpawner {
             }
         }
 
-        // Atualizar orbes de XP
-        for (let i = this.xpOrbs.length - 1; i >= 0; i--) {
+        // Atualizar orbes de XP (Pool)
+        for (let i = 0; i < this.xpPoolSize; i++) {
             const orb = this.xpOrbs[i];
-
-            if (!orb.active) {
-                this.xpOrbs.splice(i, 1);
-                continue;
-            }
+            if (!orb.active) continue;
 
             const collected = orb.update(player);
             if (collected) {
                 player.gainXP(orb.value);
+                if (particleSystem) {
+                    particleSystem.createExplosion(orb.x, orb.y, '#ffff00', 4);
+                }
             }
         }
     }
@@ -461,24 +479,42 @@ class EnemySpawner {
                 break;
         }
 
-        this.enemies.push(new Enemy(x, y, type));
+        // Encontrar slot livre no pool de inimigos
+        for (let i = 0; i < this.enemyPoolSize; i++) {
+            if (!this.enemies[i].active) {
+                this.enemies[i].reset(x, y, type);
+                return;
+            }
+        }
     }
 
     dropXP(x, y, value) {
-        this.xpOrbs.push(new XPOrb(x, y, value));
+        // Encontrar slot livre no pool de XP
+        for (let i = 0; i < this.xpPoolSize; i++) {
+            if (!this.xpOrbs[i].active) {
+                this.xpOrbs[i].reset(x, y, value);
+                return;
+            }
+        }
     }
 
     draw(ctx) {
         // Desenhar orbes de XP
-        this.xpOrbs.forEach(orb => orb.draw(ctx));
+        // Desenhar orbes de XP
+        for (let i = 0; i < this.xpPoolSize; i++) {
+            if (this.xpOrbs[i].active) this.xpOrbs[i].draw(ctx);
+        }
 
         // Desenhar inimigos
-        this.enemies.forEach(enemy => enemy.draw(ctx));
+        for (let i = 0; i < this.enemyPoolSize; i++) {
+            if (this.enemies[i].active) this.enemies[i].draw(ctx);
+        }
     }
 
     clear() {
-        this.enemies = [];
-        this.xpOrbs = [];
+        // Limpar pools (desativar todos)
+        for (let i = 0; i < this.enemyPoolSize; i++) this.enemies[i].active = false;
+        for (let i = 0; i < this.xpPoolSize; i++) this.xpOrbs[i].active = false;
         this.spawnTimer = 0;
         this.difficulty = 1;
     }

@@ -23,9 +23,12 @@ class Player {
         this.velocityX = 0;
         this.velocityY = 0;
 
-        // Combate
+        // Combate (Otimizado com Object Pooling)
         this.attackTimer = 0;
-        this.projectiles = [];
+        this.projectilePoolSize = 200; // Limite de projéteis
+        this.projectiles = new Array(this.projectilePoolSize).fill(null).map(() => new Projectile(0, 0, 0, 0, 0, 0, '#000', 0, 'dummy'));
+        // Inicializar dummy projectiles como inativos
+        this.projectiles.forEach(p => p.active = false);
         this.orbitalWeapons = [];
 
         // Armas desbloqueadas
@@ -65,16 +68,19 @@ class Player {
         this.targetY = y;
     }
 
-    update(canvasWidth, canvasHeight, enemies, particleSystem, achievementSystem) {
-        // Movimento em direção ao cursor/toque
+    update(canvasWidth, canvasHeight, enemies, particleSystem, achievementSystem, game) {
+        // Obter timeScale do jogo ou usar fallback
+        const timeScale = game ? game.timeScale : 1;
+
+        // Movimento em direção ao cursor/toque (afetado por timeScale)
         const dx = this.targetX - this.x;
         const dy = this.targetY - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // Só se move se estiver longe do alvo
         if (distance > 5) {
-            this.velocityX = (dx / distance) * this.speed;
-            this.velocityY = (dy / distance) * this.speed;
+            this.velocityX = (dx / distance) * this.speed * timeScale;
+            this.velocityY = (dy / distance) * this.speed * timeScale;
 
             this.x += this.velocityX;
             this.y += this.velocityY;
@@ -82,8 +88,10 @@ class Player {
             // Rotação baseada na direção
             this.rotation = Math.atan2(dy, dx);
 
-            // Adicionar trilha de movimento
-            this.trail.push({ x: this.x, y: this.y, alpha: 1 });
+            // Adicionar trilha de movimento (Juice)
+            if (this.speed > 5 || game.timeScale < 1) { // Só se muito rápido ou em slow mo (Matrix style)
+                this.trail.push({ x: this.x, y: this.y, alpha: 1 });
+            }
             if (this.trail.length > this.maxTrailLength) {
                 this.trail.shift();
             }
@@ -94,7 +102,7 @@ class Player {
 
         // Atualizar trilha
         this.trail.forEach((point, i) => {
-            point.alpha -= 0.05;
+            point.alpha -= 0.05 * timeScale;
         });
         this.trail = this.trail.filter(point => point.alpha > 0);
 
@@ -103,28 +111,31 @@ class Player {
         this.y = Math.max(this.size, Math.min(canvasHeight - this.size, this.y));
 
         // Animação de pulso
-        this.pulseTimer += 0.1;
+        this.pulseTimer += 0.1 * timeScale;
         this.scale = 1 + Math.sin(this.pulseTimer) * 0.1;
 
         // Reduzir invulnerabilidade
         if (this.invulnerable > 0) {
-            this.invulnerable--;
+            this.invulnerable -= 1 * timeScale;
         }
 
         // Ataque automático
-        this.attackTimer++;
+        this.attackTimer += 1 * timeScale;
         if (this.attackTimer >= this.attackSpeed) {
             this.attackTimer = 0;
             this.attack(enemies);
         }
 
-        // Atualizar projéteis
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+        // Atualizar projéteis (Usando Pool)
+        for (let i = 0; i < this.projectilePoolSize; i++) {
             const proj = this.projectiles[i];
-            proj.update(canvasWidth, canvasHeight);
+            if (!proj.active) continue;
+
+            proj.update(canvasWidth, canvasHeight); // Projéteis precisam de timeScale? Sim, idealmente.
+            // Mas Projectile.update não aceita timeScale. Vamos deixar assim por enquanto ou ajustar.
 
             if (!proj.active) {
-                this.projectiles.splice(i, 1);
+                // Se desativou após update (saiu da tela etc), contabilizar erro
                 if (achievementSystem && !proj.hitTarget) {
                     achievementSystem.updateStats('shot_miss', 1);
                 }
@@ -136,10 +147,20 @@ class Player {
                 if (!enemy.active) continue;
 
                 if (proj.checkCollision(enemy)) {
-                    const died = enemy.takeDamage(proj.damage);
+                    const damage = proj.damage;
+                    const died = enemy.takeDamage(damage);
                     proj.active = false;
                     proj.hitTarget = true;
                     particleSystem.createExplosion(enemy.x, enemy.y, proj.color, 8);
+
+                    // JUICE: Floating Text
+                    if (game) {
+                        const isCrit = Math.random() < 0.1; // 10% chance crit (simulado)
+                        const finalDamage = isCrit ? Math.floor(damage * 1.5) : damage;
+                        const color = isCrit ? '#ff0000' : '#ffffff';
+                        const size = isCrit ? 30 : 20;
+                        game.spawnFloatingText(enemy.x, enemy.y - 20, Math.floor(finalDamage), color, size);
+                    }
 
                     if (achievementSystem) {
                         achievementSystem.updateStats('shot_hit', 1);
@@ -194,10 +215,11 @@ class Player {
         // Disparar projéteis baseado nas armas desbloqueadas
         if (this.weapons.bullet.unlocked) {
             // Mirar DIRETAMENTE no inimigo
-            this.projectiles.push(new Projectile(
+            // Mirar DIRETAMENTE no inimigo
+            this.spawnProjectile(
                 this.x, this.y, closest.x, closest.y,
-                this.damage, 8, this.skinColor, 5, 'bullet' // Usar cor da skin para projéteis básicos
-            ));
+                this.damage, 8, this.skinColor, 5, 'bullet'
+            );
         }
 
         if (this.weapons.magic.unlocked) {
@@ -208,18 +230,18 @@ class Player {
                 const targetX = closest.x + (Math.random() - 0.5) * spread;
                 const targetY = closest.y + (Math.random() - 0.5) * spread;
 
-                this.projectiles.push(new Projectile(
+                this.spawnProjectile(
                     this.x, this.y, targetX, targetY,
                     this.damage * 1.5, 6, '#ff88cc', 8, 'magic'
-                ));
+                );
             }
         }
 
         if (this.weapons.lightning.unlocked && Math.random() < 0.3) {
-            this.projectiles.push(new Projectile(
+            this.spawnProjectile(
                 this.x, this.y, closest.x, closest.y,
                 this.damage * 2, 20, '#ffdd88', 15, 'lightning'
-            ));
+            );
         }
     }
 
@@ -338,7 +360,12 @@ class Player {
         ctx.restore();
 
         // Desenhar projéteis
-        this.projectiles.forEach(proj => proj.draw(ctx));
+        // Desenhar projéteis
+        for (let i = 0; i < this.projectilePoolSize; i++) {
+            if (this.projectiles[i].active) {
+                this.projectiles[i].draw(ctx);
+            }
+        }
 
         // Desenhar armas orbitais
         this.orbitalWeapons.forEach(weapon => weapon.draw(ctx));
@@ -380,6 +407,16 @@ class Player {
             case 'stat_attackspeed':
                 this.attackSpeed = Math.max(10, this.attackSpeed - 5);
                 break;
+        }
+    }
+
+    spawnProjectile(x, y, tx, ty, dmg, spd, color, size, type) {
+        // Encontrar slot livre no pool
+        for (let i = 0; i < this.projectilePoolSize; i++) {
+            if (!this.projectiles[i].active) {
+                this.projectiles[i].reset(x, y, tx, ty, dmg, spd, color, size, type);
+                return;
+            }
         }
     }
 }

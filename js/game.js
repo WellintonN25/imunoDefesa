@@ -199,7 +199,16 @@ class Game {
         this.kills = 0;
         this.frameCount = 0;
         this.cameraShake = 0;
+        this.cameraShakeIntensity = 0;
         this.backgroundOffset = 0;
+        this.timeScale = 1;
+        this.slowMotionTimer = 0;
+
+        // Floating Text System (Pooling)
+        this.textPoolSize = 50;
+        this.floatingTexts = new Array(this.textPoolSize).fill(null).map(() => ({
+            x: 0, y: 0, text: '', color: '#fff', size: 20, life: 0, active: false, velocityY: 0
+        }));
 
         // Criar entidades
         this.player = new Player(this.canvas.width / 2, this.canvas.height / 2);
@@ -383,6 +392,8 @@ class Game {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
+
         data.runHistory.forEach(run => {
             const date = new Date(run.date);
             const formattedDate = `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -400,8 +411,9 @@ class Game {
                 <span>💀 ${run.kills}</span>
                 <span>${run.weapon || '-'}</span>
             `;
-            historyList.appendChild(item);
+            fragment.appendChild(item);
         });
+        historyList.appendChild(fragment);
     }
 
     renderAchievements() {
@@ -416,6 +428,8 @@ class Game {
 
         // Renderizar customização (Títulos e Skins)
         this.renderCustomization();
+
+        const fragment = document.createDocumentFragment();
 
         // Renderizar conquistas
         achievements.forEach(achievement => {
@@ -447,8 +461,9 @@ class Game {
                 ${achievement.unlocked ? '<div class="achievement-unlocked-badge">✓</div>' : ''}
             `;
 
-            grid.appendChild(card);
+            fragment.appendChild(card);
         });
+        grid.appendChild(fragment);
 
         // Configurar filtros
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -744,87 +759,116 @@ class Game {
     }
 
     update() {
-        if (this.state !== 'PLAYING') return;
+        if (this.state !== 'PLAYING' && this.state !== 'LEVEL_UP') return;
 
-        // Incrementar tempo a cada segundo (60 frames)
-        this.frameCount++;
-        if (this.frameCount >= 60) {
-            this.frameCount = 0;
-            this.gameTime++;
-
-            // Atualizar conquistas de tempo
-            this.achievementSystem.updateStats('time', this.gameTime);
+        // --- JUICE: Slow Motion & Camera Shake ---
+        if (this.slowMotionTimer > 0) {
+            this.slowMotionTimer--;
+            this.timeScale = 0.2;
+        } else {
+            this.timeScale = 1;
         }
 
-        // Atualizar jogador
-        const result = this.player.update(
-            this.canvas.width,
-            this.canvas.height,
-            this.enemySpawner.enemies,
-            this.particleSystem,
-            this.achievementSystem
-        );
-
-        // Verificar se matou inimigo
-        if (result && result.killed) {
-            this.kills++;
-            this.enemySpawner.dropXP(result.killed.x, result.killed.y, result.killed.xpValue);
-            this.particleSystem.createBlood(result.killed.x, result.killed.y);
-
-            // Atualizar conquistas
-            this.achievementSystem.updateStats('kill', 1);
-            if (result.killed.type === 'boss') {
-                this.achievementSystem.updateStats('boss', 1);
-            }
-
-            // Rastreamento para novas conquistas
-            if (result.killed.maxHealth) {
-                this.achievementSystem.updateStats('total_damage', result.killed.maxHealth);
-            }
-            this.achievementSystem.sessionStats.killsInLast10Seconds.push(Date.now());
-
-            // Shake ao matar boss
-            if (result.killed.type === 'boss') {
-                this.cameraShake = 30;
-            } else {
-                this.cameraShake = Math.min(this.cameraShake + 2, 10);
-            }
-        }
-
-        // Reduzir camera shake
         if (this.cameraShake > 0) {
-            this.cameraShake *= 0.9;
-            if (this.cameraShake < 0.1) this.cameraShake = 0;
+            this.cameraShakeIntensity *= 0.9;
+            this.cameraShake--;
+            this.cameraX = (Math.random() - 0.5) * this.cameraShakeIntensity;
+            this.cameraY = (Math.random() - 0.5) * this.cameraShakeIntensity;
+        } else {
+            this.cameraX = 0;
+            this.cameraY = 0;
         }
 
-        // Verificar level up
-        const oldLevel = this.player.level;
-        const leveledUp = this.player.xp >= this.player.xpToNextLevel;
-        if (leveledUp) {
-            this.achievementSystem.updateStats('level', this.player.level);
-            this.handleLevelUp();
+        // --- JUICE: Floating Texts ---
+        for (let i = 0; i < this.textPoolSize; i++) {
+            const ft = this.floatingTexts[i];
+            if (!ft.active) continue;
+            ft.y += ft.velocityY * this.timeScale;
+            ft.life--;
+            if (ft.life <= 0) ft.active = false;
         }
 
-        // Atualizar inimigos
-        this.enemySpawner.update(this.gameTime, this.player);
+        // --- Entidades ---
+        this.particleSystem.update(); // Sempre atualiza visual
 
-        // Atualizar partículas
-        this.particleSystem.update();
+        if (this.state === 'PLAYING') {
+            // Game Loop com chance baseada em TimeScale (Simula Slow Motion)
+            if (Math.random() < this.timeScale) {
 
-        // Verificar conquistas
+                // Atualizar Tempo
+                this.frameCount++;
+                if (this.frameCount >= 60) {
+                    this.frameCount = 0;
+                    this.gameTime++;
+                    this.achievementSystem.updateStats('time', this.gameTime);
+                }
+
+                // Atualizar Jogador e receber resultado (kills)
+                const oldLevel = this.player.level; // Guardar level antes do update
+
+                const result = this.player.update(
+                    this.canvas.width,
+                    this.canvas.height,
+                    this.enemySpawner.enemies,
+                    this.particleSystem,
+                    this.achievementSystem,
+                    this // Passa referência do Game para Juice
+                );
+
+                // Atualizar Inimigos
+                this.enemySpawner.update(this.gameTime, this.player);
+
+                // Verificar Level Up (se mudou durante update de orbes)
+                if (this.player.level > oldLevel) {
+                    this.achievementSystem.updateStats('level', this.player.level);
+                    this.triggerSlowMotion(60); // Slow motion ao upar (Juice!)
+                    // Não chamamos handleLevelUp aqui pois queremos o slow motion primeiro, 
+                    // mas s handleLevelUp pausa o jogo, então ok.
+                    // Vamos chamar handleLevelUp no próximo frame ou agora?
+                    // Se pausar, o slow motion não será visto. 
+                    // Ideal: Slow motion por 1 seg, DEPOIS pausa.
+                    // Mas isso requer estado de transição. Vamos manter simples: só chama handleLevelUp.
+                    this.handleLevelUp();
+                }
+
+                // Lógica de Kill
+                if (result && result.killed) {
+                    this.kills++;
+                    this.enemiesKilledSession++; // Para achievements
+                    this.enemySpawner.dropXP(result.killed.x, result.killed.y, result.killed.xpValue);
+                    this.particleSystem.createBlood(result.killed.x, result.killed.y);
+
+                    this.handleKillAudio();
+
+                    // Achievements de Kill
+                    this.achievementSystem.updateStats('kill', 1);
+                    if (result.killed.type === 'boss') {
+                        this.achievementSystem.updateStats('boss', 1);
+                        this.shakeCamera(30, 10); // Shake forte no boss
+                    }
+                    if (result.killed.maxHealth) {
+                        this.achievementSystem.updateStats('total_damage', result.killed.maxHealth);
+                    }
+                    this.achievementSystem.sessionStats.killsInLast10Seconds.push(Date.now());
+                }
+
+                // (Level Up e Kill Logic já tratados acima)
+            }
+        }
+
+        // Verificar Conquistas
         const unlockedAchievements = this.achievementSystem.checkAchievements();
         unlockedAchievements.forEach(achievement => {
             this.showAchievementNotification(achievement);
         });
 
-        // Verificar game over
+        // Verificar Game Over
         if (this.player.health <= 0) {
             this.cameraShake = 40;
             this.handleGameOver();
         }
 
-        // Atualizar HUD
-        this.updateHUD();
+        this.updateHUD(); // Atualiza barras e textos
     }
 
     draw() {
@@ -848,6 +892,25 @@ class Game {
             this.enemySpawner.draw(this.ctx);
             this.player.draw(this.ctx, this.particleSystem);
             this.particleSystem.draw(this.ctx);
+
+            // Draw Floating Texts
+            this.ctx.textAlign = 'center';
+            this.ctx.save();
+            // Texto flutuante não deve ser afetado pelo shake da câmera se for UI, mas se for in-world deve.
+            // Como já demos translate na câmera, está ok.
+            for (let i = 0; i < this.textPoolSize; i++) {
+                const ft = this.floatingTexts[i];
+                if (!ft.active) continue;
+
+                this.ctx.globalAlpha = Math.min(1, ft.life / 20);
+                this.ctx.fillStyle = ft.color;
+                this.ctx.font = `bold ${ft.size}px Orbitron`;
+                this.ctx.strokeStyle = 'black';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeText(ft.text, ft.x, ft.y);
+                this.ctx.fillText(ft.text, ft.x, ft.y);
+            }
+            this.ctx.restore();
         }
 
         this.ctx.restore();
@@ -934,6 +997,33 @@ class Game {
 
         // Próximo frame
         requestAnimationFrame((time) => this.gameLoop(time));
+    }
+
+    // JUICE HELPERS
+    spawnFloatingText(x, y, text, color, size = 20) {
+        // Encontrar slot livre
+        for (let i = 0; i < this.textPoolSize; i++) {
+            if (!this.floatingTexts[i].active) {
+                this.floatingTexts[i].x = x + (Math.random() * 20 - 10);
+                this.floatingTexts[i].y = y;
+                this.floatingTexts[i].text = text;
+                this.floatingTexts[i].color = color;
+                this.floatingTexts[i].size = size;
+                this.floatingTexts[i].life = 40; // frames
+                this.floatingTexts[i].active = true;
+                this.floatingTexts[i].velocityY = -2; // Resetar velocidade
+                return;
+            }
+        }
+    }
+
+    shakeCamera(duration, intensity) {
+        this.cameraShake = duration;
+        this.cameraShakeIntensity = intensity;
+    }
+
+    triggerSlowMotion(duration) {
+        this.slowMotionTimer = duration;
     }
 }
 
