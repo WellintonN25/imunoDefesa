@@ -1428,3 +1428,334 @@ body {
         /* 1 card por linha */
     }
 }
+/* ========== CONFIGURAÇÕES DE ÁUDIO ========== */
+
+.settings-content {
+    width: 90%;
+    max-width: 600px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 2px solid var(--glass-border);
+    border-radius: 30px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.settings-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    text-align: center;
+    margin-bottom: 2.5rem;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.audio-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.control-group label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+/* Custom Range Slider */
+input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+}
+
+input[type=range]:focus {
+    outline: none;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+input[type=range]::-webkit-slider-thumb {
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -9px;
+    box-shadow: 0 0 10px var(--accent);
+    transition: transform 0.2s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .settings-content {
+        padding: 1.5rem;
+        width: 95%;
+    }
+
+    .settings-title {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .audio-controls {
+        gap: 1.5rem;
+    }
+
+    .control-group label {
+        font-size: 1rem;
+    }
+}
+/* ========== HUD COMPACTO (REFINAMENTO) ========== */
+
+.hud {
+    padding: 10px;
+    /* Mais próximo das bordas */
+}
+
+/* 1. Barras de HP/XP mais finas e elegantes */
+.stat-container {
+    margin-bottom: 0px;
+    /* Remover margem extra */
+    position: relative;
+    padding-top: 18px;
+    /* Espaço para o texto acima */
+}
+
+.bar-container {
+    height: 10px;
+    /* Barra bem fina (era 30px) */
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    /* Bordas levemente arredondadas */
+    backdrop-filter: blur(2px);
+    overflow: visible;
+    /* Permitir que texto flutue fora se necessário */
+}
+
+.stat-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.75rem;
+    /* Texto menor */
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px black;
+    z-index: 2;
+}
+
+.bar-text {
+    /* Mover texto para o TOPO DIREITO, fora da barra */
+    position: absolute;
+    top: -20px;
+    /* Acima da barra */
+    right: 0;
+    left: auto;
+    transform: none;
+    /* Remover centralização */
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    text-shadow: 0 1px 2px black;
+}
+
+/* Cor da barra mais "neon" e sólida */
+.hp-bar {
+    box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+}
+
+.xp-bar {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+/* 2. Indicadores (Nível, Tempo, Kills) estilo "Pílula" */
+.hud-info {
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+    justify-content: flex-start;
+    /* Alinhar à esquerda em mobile, ou centro? */
+}
+
+.info-item {
+    padding: 4px 12px;
+    /* Muito mais compacto (era 0.8rem 1.5rem) */
+    border-radius: 20px;
+    /* Formato pílula */
+    background: rgba(0, 0, 0, 0.5);
+    /* Mais transparente */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-direction: row;
+    /* Ícone/Label lado a lado com Valor */
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.info-label {
+    margin: 0;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+}
+
+.info-value {
+    font-size: 0.95rem;
+    /* Menor e mais nítido */
+    line-height: 1;
+}
+
+/* Mobile específico para HUD */
+@media (max-width: 768px) {
+    .hud-top {
+        gap: 0.8rem;
+    }
+
+    .hud-info {
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .info-item {
+        padding: 3px 10px;
+    }
+
+    /* Esconder label "Abates" em telas muito pequenas, deixar só ícone/número se tivesse ícone, mas aqui é texto */
+    .info-value {
+        font-size: 0.9rem;
+    }
+}
+/* ========== HUD ULTRA COMPACTO (REFINAMENTO FINAL) ========== */
+
+.hud {
+    padding: 8px;
+    /* Margem mínima */
+}
+
+/* 1. Barras de HP/XP - Ultra Finas */
+.stat-container {
+    margin-bottom: 0px;
+    position: relative;
+    padding-top: 14px;
+    /* Espaço para label */
+    max-width: 300px;
+    /* Limitar largura */
+}
+
+.bar-container {
+    height: 6px;
+    /* Barra extremamente fina */
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    backdrop-filter: blur(2px);
+    overflow: visible;
+}
+
+.stat-label {
+    top: 2px;
+    left: 0;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 2px black;
+}
+
+.bar-text {
+    /* Texto flutuando à direita superior */
+    top: -16px;
+    right: 0;
+    left: auto;
+    transform: none;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+    font-family: 'Inter', sans-serif;
+    text-shadow: 0 1px 2px black;
+}
+
+/* Cor da barra com brilho intenso mas contido */
+.hp-bar {
+    background: linear-gradient(90deg, #ff3366 0%, #ff6699 100%);
+    box-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+}
+
+.xp-bar {
+    background: linear-gradient(90deg, #00f0ff 0%, #00aaff 100%);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+/* 2. Pílulas de Status - Minimalistas */
+.hud-info {
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    justify-content: flex-start;
+}
+
+.info-item {
+    padding: 2px 10px;
+    /* Altura mínima */
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.info-label {
+    font-size: 0.65rem;
+    /* Texto bem pequeno */
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+}
+
+.info-value {
+    font-size: 0.85rem;
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 500;
+}
+
+/* Ajustes Mobile */
+@media (max-width: 768px) {
+    .hud {
+        padding: 5px 10px;
+    }
+
+    .stat-container {
+        flex: 1;
+        /* Dividir espaço igual */
+        max-width: none;
+    }
+
+    .hud-top {
+        gap: 1rem;
+        margin-bottom: 0.2rem;
+    }
+}

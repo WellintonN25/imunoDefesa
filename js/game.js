@@ -16,8 +16,10 @@ class Game {
         // Sistemas
         this.particleSystem = new ParticleSystem();
         this.upgradeSystem = new UpgradeSystem();
+        this.upgradeSystem = new UpgradeSystem();
         this.progressionSystem = new ProgressionSystem();
         this.achievementSystem = new AchievementSystem();
+        this.audioManager = new AudioManager();
 
         // Entidades
         this.player = null;
@@ -42,6 +44,11 @@ class Game {
         this.lastTime = 0;
         this.frameCount = 0;
         requestAnimationFrame((time) => this.gameLoop(time));
+
+        // Inicializar com música de menu se áudio estiver ativo
+        if (this.audioManager) {
+            this.audioManager.playMusic('MENU');
+        }
     }
 
     resizeCanvas() {
@@ -96,6 +103,8 @@ class Game {
     setupUI() {
         // Botão Iniciar
         document.getElementById('start-btn').addEventListener('click', () => {
+            this.audioManager.init(); // Inicia o contexto de áudio
+            this.audioManager.resume();
             this.startGame();
         });
 
@@ -111,6 +120,25 @@ class Game {
 
         document.getElementById('stats-btn').addEventListener('click', () => {
             this.showStatsScreen();
+        });
+
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            this.audioManager.init(); // Garante init se entrar configs primeiro
+            this.showSettingsScreen();
+        });
+
+        document.getElementById('save-settings-btn').addEventListener('click', () => {
+            this.audioManager.saveSettings();
+            this.showScreen('menu-screen');
+        });
+
+        // Sliders de Áudio
+        const sliders = ['master', 'music', 'sfx', 'voice'];
+        sliders.forEach(key => {
+            document.getElementById(`vol-${key}`).addEventListener('input', (e) => {
+                this.audioManager.volumes[key] = parseFloat(e.target.value);
+                this.audioManager.updateVolumes();
+            });
         });
 
         document.getElementById('back-stats-btn').addEventListener('click', () => {
@@ -245,10 +273,19 @@ class Game {
         });
 
         document.getElementById('levelup-modal').classList.remove('hidden');
+        // Iniciar música
+        this.audioManager.playMusic('GAME');
+        this.audioManager.speak('System Initialize. Defender ready.');
     }
 
     handleGameOver() {
         this.state = 'GAME_OVER';
+
+        if (this.audioManager) {
+            this.audioManager.stopMusic();
+            this.audioManager.playSFX('HIT');
+            this.audioManager.speak('System Critical. Mission Failed.');
+        }
 
         // Salvar progresso
         this.progressionSystem.addXP(this.player.xp);
@@ -503,6 +540,12 @@ class Game {
     }
 
     playAchievementSound(isRare = false) {
+        // Usa o AudioManager centralizado se disponível
+        if (this.audioManager) {
+            this.audioManager.playSFX('LEVEL_UP');
+            return;
+        }
+
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -539,6 +582,11 @@ class Game {
 
     renderUpgrades() {
         const prog = this.progressionSystem;
+
+        // Verifica se audioManager existe antes de tocar som
+        if (this.audioManager) {
+            this.audioManager.playSFX('LEVEL_UP');
+        }
 
         // Atualizar moedas
         document.getElementById('upgrade-xp').textContent = prog.data.totalXP;
