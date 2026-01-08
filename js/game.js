@@ -1025,6 +1025,21 @@ class Game {
     triggerSlowMotion(duration) {
         this.slowMotionTimer = duration;
     }
+
+    handleKillAudio() {
+        // Tocar som de morte
+        // this.audioManager.playSFX('KILL'); // Muito frequente?
+        // Talvez som de hit
+        // Vamos tocar algo sutil
+        // Como não temos 'playSFX' arbitrário exposto no Game (só via audioManager),
+        // vamos acessar direto.
+        if (this.audioManager) {
+            // Som de Hit aleatório (pitch variation)
+            // this.audioManager.playSFX('HIT');
+            // Som de Kill
+            this.audioManager.playSFX('KILL');
+        }
+    }
 }
 
 // Iniciar jogo quando a página carregar
