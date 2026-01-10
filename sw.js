@@ -1,4 +1,4 @@
-const CACHE_NAME = 'imuno-defesa-v2';
+const CACHE_NAME = 'imuno-defesa-v3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
     './js/upgrade.js',
     './js/progression.js',
     './js/achievements.js',
+    './js/audio.js',
     './manifest.json',
     './assets/icon-192.png',
     './assets/icon-512.png'
