@@ -44,12 +44,36 @@ class Particle {
     }
 }
 
-// Gerenciador de Partículas com Object Pooling
+// Gerenciador de Partículas com Object Pooling & Sprite Cache
 class ParticleSystem {
     constructor() {
         this.poolSize = 400; // Limite máximo de partículas
         this.particles = new Array(this.poolSize).fill(null).map(() => new Particle());
         this.activeCount = 0;
+
+        // Sprite Cache: Armazena offscreen canvases reutilizáveis
+        this.spriteCache = {};
+        this.baseSpriteSize = 10; // Tamanho base (radius) para alta qualidade
+    }
+
+    getSprite(color) {
+        if (!this.spriteCache[color]) {
+            // Criar novo sprite se não existir
+            const size = this.baseSpriteSize * 2; // Diâmetro
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Desenhar círculo vetorial UMA VEZ
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(this.baseSpriteSize, this.baseSpriteSize, this.baseSpriteSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            this.spriteCache[color] = canvas;
+        }
+        return this.spriteCache[color];
     }
 
     getParticle() {
@@ -149,8 +173,29 @@ class ParticleSystem {
         ctx.save(); // Salvar estado UMA vez por frame
 
         for (let i = 0; i < this.poolSize; i++) {
-            if (this.particles[i].active) {
-                this.particles[i].draw(ctx);
+            const p = this.particles[i];
+            if (p.active) {
+                try {
+                    const sprite = this.getSprite(p.color);
+
+                    // Set alpha
+                    ctx.globalAlpha = Math.max(0, p.alpha);
+
+                    // Draw Image (Muito mais rápido que arc)
+                    // A imagem tem tamanho baseSpriteSize*2 (ex: 20px)
+                    // Queremos desenhar com tamanho p.size (raio) * 2 = diâmetro
+                    const diameter = p.size * 2;
+
+                    // Centralizar: x - r, y - r
+                    ctx.drawImage(sprite, p.x - p.size, p.y - p.size, diameter, diameter);
+
+                } catch (e) {
+                    // Fallback se algo der errado com o canvas
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
