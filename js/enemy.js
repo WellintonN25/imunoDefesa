@@ -15,18 +15,18 @@ class XPOrb {
         this.maxSpeed = 8;
     }
 
-    update(player) {
+    update(player, dtFactor = 1) {
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // Magnetismo - atrai para o jogador quando próximo
         if (distance < this.magnetRange) {
-            this.speed = Math.min(this.speed + 0.5, this.maxSpeed);
+            this.speed = Math.min(this.speed + 0.5 * dtFactor, this.maxSpeed);
             const dirX = dx / distance;
             const dirY = dy / distance;
-            this.x += dirX * this.speed;
-            this.y += dirY * this.speed;
+            this.x += dirX * this.speed * dtFactor;
+            this.y += dirY * this.speed * dtFactor;
 
             // Coletar se tocar o jogador
             if (distance < player.size + this.size) {
@@ -119,15 +119,15 @@ class Enemy {
         Object.assign(this, config);
     }
 
-    update(player) {
+    update(player, dtFactor = 1) {
         // IA: perseguir o jogador
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > 0) {
-            this.x += (dx / distance) * this.speed;
-            this.y += (dy / distance) * this.speed;
+            this.x += (dx / distance) * this.speed * dtFactor;
+            this.y += (dy / distance) * this.speed * dtFactor;
         }
 
         // Reduzir flash de dano
@@ -395,15 +395,15 @@ class EnemySpawner {
         this.difficulty = 1;
     }
 
-    update(gameTime, player, particleSystem) {
+    update(gameTime, player, particleSystem, dtFactor = 1) {
         // Aumentar dificuldade com o tempo
         this.difficulty = 1 + (gameTime / 30); // +1 de dificuldade a cada 30 segundos
 
         // Reduzir intervalo de spawn com o tempo
         this.spawnInterval = Math.max(30, 120 - Math.floor(gameTime / 10));
 
-        // Spawn de inimigos baseada no tempo
-        this.spawnTimer++;
+        // Spawn de inimigos baseada no tempo (usando frames reais acumulados por dt)
+        this.spawnTimer += dtFactor;
         if (this.spawnTimer >= this.spawnInterval) {
             this.spawnTimer = 0;
             const type = Math.random() < Math.min(0.8, 0.1 + (gameTime / 600) * 0.1) ? 'runner' : 'basic';
@@ -411,7 +411,8 @@ class EnemySpawner {
         }
 
         // Spawn de Boss
-        if (gameTime > 0 && gameTime % 1800 === 0 && this.spawnTimer === 0) { // 30 segundos
+        // Nota: gameTime já avança em segundos reais no Game.js, então ok usar check direto
+        if (gameTime > 0 && gameTime % 1800 === 0 && this.spawnTimer === 0) {
             this.spawnEnemy('boss');
         }
 
@@ -420,7 +421,7 @@ class EnemySpawner {
             const enemy = this.enemies[i];
             if (!enemy.active) continue;
 
-            const collision = enemy.update(player);
+            const collision = enemy.update(player, dtFactor); // Passa dt
             if (collision) {
                 player.takeDamage(enemy.damage);
             }
@@ -431,7 +432,7 @@ class EnemySpawner {
             const orb = this.xpOrbs[i];
             if (!orb.active) continue;
 
-            const collected = orb.update(player);
+            const collected = orb.update(player, dtFactor); // Passa dt
             if (collected) {
                 player.gainXP(orb.value);
                 if (particleSystem) {

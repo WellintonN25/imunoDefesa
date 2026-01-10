@@ -17,13 +17,13 @@ class Particle {
         this.active = true;
     }
 
-    update() {
+    update(dtFactor = 1) {
         if (!this.active) return;
 
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-        this.alpha -= this.decay;
-        this.size *= 0.98;
+        this.x += this.velocityX * dtFactor;
+        this.y += this.velocityY * dtFactor;
+        this.alpha -= this.decay * dtFactor;
+        this.size *= (1 - (0.02 * dtFactor)); // Aproximação de 0.98 frame-based
 
         if (this.alpha <= 0 || this.size <= 0.5) {
             this.active = false;
@@ -33,15 +33,14 @@ class Particle {
     draw(ctx) {
         if (!this.active) return;
 
-        ctx.save();
-        ctx.globalAlpha = this.alpha;
+        // Otimização: Removemos save/restore por partícula
+        // O ParticleSystem vai gerenciar o estado global
+        ctx.globalAlpha = Math.max(0, this.alpha);
         ctx.fillStyle = this.color;
+
         ctx.beginPath();
-        // Otimização: Desenhando quadrado em vez de círculo para performance se estiver muito pesado (opcional)
-        // ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
     }
 }
 
@@ -138,21 +137,24 @@ class ParticleSystem {
         }
     }
 
-    update() {
+    update(dtFactor = 1) {
         for (let i = 0; i < this.poolSize; i++) {
             if (this.particles[i].active) {
-                this.particles[i].update();
+                this.particles[i].update(dtFactor);
             }
         }
     }
 
     draw(ctx) {
-        // Otimização: Não criar novos arrays ou objetos aqui
+        ctx.save(); // Salvar estado UMA vez por frame
+
         for (let i = 0; i < this.poolSize; i++) {
             if (this.particles[i].active) {
                 this.particles[i].draw(ctx);
             }
         }
+
+        ctx.restore(); // Restaurar estado
     }
 
     clear() {

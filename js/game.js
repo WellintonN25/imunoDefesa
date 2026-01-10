@@ -758,12 +758,15 @@ class Game {
         }
     }
 
-    update() {
+    update(dtFactor = 1) {
         if (this.state !== 'PLAYING' && this.state !== 'LEVEL_UP') return;
 
         // --- JUICE: Slow Motion & Camera Shake ---
+        // timeScale afeta o dtFactor globalmente para lógica do jogo
+        const effectiveDt = dtFactor * this.timeScale;
+
         if (this.slowMotionTimer > 0) {
-            this.slowMotionTimer--;
+            this.slowMotionTimer -= dtFactor; // Timer conta em frames reais
             this.timeScale = 0.2;
         } else {
             this.timeScale = 1;
@@ -771,7 +774,7 @@ class Game {
 
         if (this.cameraShake > 0) {
             this.cameraShakeIntensity *= 0.9;
-            this.cameraShake--;
+            this.cameraShake -= dtFactor;
             this.cameraX = (Math.random() - 0.5) * this.cameraShakeIntensity;
             this.cameraY = (Math.random() - 0.5) * this.cameraShakeIntensity;
         } else {
@@ -783,77 +786,82 @@ class Game {
         for (let i = 0; i < this.textPoolSize; i++) {
             const ft = this.floatingTexts[i];
             if (!ft.active) continue;
-            ft.y += ft.velocityY * this.timeScale;
-            ft.life--;
+            // Movimento suave independente de FPS
+            ft.y += ft.velocityY * effectiveDt;
+            ft.life -= effectiveDt;
             if (ft.life <= 0) ft.active = false;
         }
 
         // --- Entidades ---
-        this.particleSystem.update(); // Sempre atualiza visual
+        this.particleSystem.update(dtFactor); // Usa dtFactor (tempo real) para que partículas de UI (Level Up) não fiquem lentas demais? 
+        // OU effectiveDt (tempo do jogo)? 
+        // Se usarmos effectiveDt, confete de level up fica lento. 
+        // Melhor usar dtFactor (1.0 * lag fix) para partículas visuais puras.
+        // Se quisermos partículas de jogo lentas, precisaríamos de layers. 
+        // Vamos de dtFactor para "suavisar" sem slowmo excessivo em menus.
 
         if (this.state === 'PLAYING') {
-            // Game Loop com chance baseada em TimeScale (Simula Slow Motion)
-            if (Math.random() < this.timeScale) {
+            // AGORA: Rodamos sempre (sem check de random), mas com DeltaTime ajustado
 
-                // Atualizar Tempo
-                this.frameCount++;
-                if (this.frameCount >= 60) {
-                    this.frameCount = 0;
-                    this.gameTime++;
-                    this.achievementSystem.updateStats('time', this.gameTime);
-                }
-
-                // Atualizar Jogador e receber resultado (kills)
-                const oldLevel = this.player.level; // Guardar level antes do update
-
-                const result = this.player.update(
-                    this.canvas.width,
-                    this.canvas.height,
-                    this.enemySpawner.enemies,
-                    this.particleSystem,
-                    this.achievementSystem,
-                    this // Passa referência do Game para Juice
-                );
-
-                // Atualizar Inimigos
-                this.enemySpawner.update(this.gameTime, this.player);
-
-                // Verificar Level Up (se mudou durante update de orbes)
-                if (this.player.level > oldLevel) {
-                    this.achievementSystem.updateStats('level', this.player.level);
-                    this.triggerSlowMotion(60); // Slow motion ao upar (Juice!)
-                    // Não chamamos handleLevelUp aqui pois queremos o slow motion primeiro, 
-                    // mas s handleLevelUp pausa o jogo, então ok.
-                    // Vamos chamar handleLevelUp no próximo frame ou agora?
-                    // Se pausar, o slow motion não será visto. 
-                    // Ideal: Slow motion por 1 seg, DEPOIS pausa.
-                    // Mas isso requer estado de transição. Vamos manter simples: só chama handleLevelUp.
-                    this.handleLevelUp();
-                }
-
-                // Lógica de Kill
-                if (result && result.killed) {
-                    this.kills++;
-                    this.enemiesKilledSession++; // Para achievements
-                    this.enemySpawner.dropXP(result.killed.x, result.killed.y, result.killed.xpValue);
-                    this.particleSystem.createBlood(result.killed.x, result.killed.y);
-
-                    this.handleKillAudio();
-
-                    // Achievements de Kill
-                    this.achievementSystem.updateStats('kill', 1);
-                    if (result.killed.type === 'boss') {
-                        this.achievementSystem.updateStats('boss', 1);
-                        this.shakeCamera(30, 10); // Shake forte no boss
-                    }
-                    if (result.killed.maxHealth) {
-                        this.achievementSystem.updateStats('total_damage', result.killed.maxHealth);
-                    }
-                    this.achievementSystem.sessionStats.killsInLast10Seconds.push(Date.now());
-                }
-
-                // (Level Up e Kill Logic já tratados acima)
+            // Atualizar Tempo
+            this.frameCount += effectiveDt;
+            if (this.frameCount >= 60) {
+                this.frameCount = 0;
+                this.gameTime++;
+                this.achievementSystem.updateStats('time', this.gameTime);
             }
+
+            // Atualizar Jogador e receber resultado (kills)
+            const oldLevel = this.player.level; // Guardar level antes do update
+
+            const result = this.player.update(
+                this.canvas.width,
+                this.canvas.height,
+                this.enemySpawner.enemies,
+                this.particleSystem,
+                this.achievementSystem,
+                this,
+                effectiveDt // Novo: Delta Time Factor
+            );
+
+            // Atualizar Inimigos
+            this.enemySpawner.update(this.gameTime, this.player, this.particleSystem, effectiveDt);
+
+            // Verificar Level Up (se mudou durante update de orbes)
+            if (this.player.level > oldLevel) {
+                this.achievementSystem.updateStats('level', this.player.level);
+                this.triggerSlowMotion(60); // Slow motion ao upar (Juice!)
+                // Não chamamos handleLevelUp aqui pois queremos o slow motion primeiro, 
+                // mas s handleLevelUp pausa o jogo, então ok.
+                // Vamos chamar handleLevelUp no próximo frame ou agora?
+                // Se pausar, o slow motion não será visto. 
+                // Ideal: Slow motion por 1 seg, DEPOIS pausa.
+                // Mas isso requer estado de transição. Vamos manter simples: só chama handleLevelUp.
+                this.handleLevelUp();
+            }
+
+            // Lógica de Kill
+            if (result && result.killed) {
+                this.kills++;
+                this.enemiesKilledSession++; // Para achievements
+                this.enemySpawner.dropXP(result.killed.x, result.killed.y, result.killed.xpValue);
+                this.particleSystem.createBlood(result.killed.x, result.killed.y);
+
+                this.handleKillAudio();
+
+                // Achievements de Kill
+                this.achievementSystem.updateStats('kill', 1);
+                if (result.killed.type === 'boss') {
+                    this.achievementSystem.updateStats('boss', 1);
+                    this.shakeCamera(30, 10); // Shake forte no boss
+                }
+                if (result.killed.maxHealth) {
+                    this.achievementSystem.updateStats('total_damage', result.killed.maxHealth);
+                }
+                this.achievementSystem.sessionStats.killsInLast10Seconds.push(Date.now());
+            }
+
+            // (Level Up e Kill Logic já tratados acima)
         }
 
         // Verificar Conquistas
@@ -988,11 +996,17 @@ class Game {
 
     gameLoop(currentTime) {
         // Calcular delta time
-        const deltaTime = currentTime - this.lastTime;
+        if (!this.lastTime) this.lastTime = currentTime;
+        const deltaTimeMs = currentTime - this.lastTime;
         this.lastTime = currentTime;
 
+        // Normalizar para 60 FPS (16.67ms per frame)
+        // Se rodar a 30 FPS, dtFactor será ~2.0
+        // Limitamos a 4.0 para evitar saltos gigantes em lag spikes
+        const dtFactor = Math.min(deltaTimeMs / 16.67, 4.0);
+
         // Atualizar e desenhar
-        this.update();
+        this.update(dtFactor); // Passa dtFactor para update
         this.draw();
 
         // Próximo frame

@@ -31,9 +31,9 @@ class Projectile {
         }
     }
 
-    update(canvasWidth, canvasHeight) {
-        this.x += this.velocityX;
-        this.y += this.velocityY;
+    update(canvasWidth, canvasHeight, dtFactor = 1) {
+        this.x += this.velocityX * dtFactor;
+        this.y += this.velocityY * dtFactor;
 
         // Adicionar trilha para projéteis mágicos
         if (this.type === 'magic') {
@@ -43,9 +43,9 @@ class Projectile {
             }
         }
 
-        // Reduzir tempo de vida do raio
+        // Reduzir tempo de vida do raio (agora em tempo real via dt)
         if (this.type === 'lightning') {
-            this.lifetime--;
+            this.lifetime -= dtFactor;
             if (this.lifetime <= 0) {
                 this.active = false;
             }

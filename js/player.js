@@ -68,19 +68,24 @@ class Player {
         this.targetY = y;
     }
 
-    update(canvasWidth, canvasHeight, enemies, particleSystem, achievementSystem, game) {
+    update(canvasWidth, canvasHeight, enemies, particleSystem, achievementSystem, game, dtFactor = 1) {
         // Obter timeScale do jogo ou usar fallback
-        const timeScale = game ? game.timeScale : 1;
+        // const timeScale = game ? game.timeScale : 1; 
+        // Agora usamos dtFactor que já inclui timeScale se vindo do Game update
+        // Mas o Game passa 'effectiveDt = dtFactor * timeScale'. 
+        // Então aqui chamaremos de 'dt' ou 'timeScale' para manter compatibilidade com nomes
 
-        // Movimento em direção ao cursor/toque (afetado por timeScale)
+        const dt = dtFactor;
+
+        // Movimento em direção ao cursor/toque (afetado por timeScale/dt)
         const dx = this.targetX - this.x;
         const dy = this.targetY - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // Só se move se estiver longe do alvo
         if (distance > 5) {
-            this.velocityX = (dx / distance) * this.speed * timeScale;
-            this.velocityY = (dy / distance) * this.speed * timeScale;
+            this.velocityX = (dx / distance) * this.speed * dt;
+            this.velocityY = (dy / distance) * this.speed * dt;
 
             this.x += this.velocityX;
             this.y += this.velocityY;
@@ -89,7 +94,8 @@ class Player {
             this.rotation = Math.atan2(dy, dx);
 
             // Adicionar trilha de movimento (Juice)
-            if (this.speed > 5 || game.timeScale < 1) { // Só se muito rápido ou em slow mo (Matrix style)
+            // Se mover muito rápido relativo ao tempo visual
+            if (this.speed * dt > 5 || (game && game.timeScale < 1)) {
                 this.trail.push({ x: this.x, y: this.y, alpha: 1 });
             }
             if (this.trail.length > this.maxTrailLength) {
@@ -102,7 +108,7 @@ class Player {
 
         // Atualizar trilha
         this.trail.forEach((point, i) => {
-            point.alpha -= 0.05 * timeScale;
+            point.alpha -= 0.05 * dt;
         });
         this.trail = this.trail.filter(point => point.alpha > 0);
 
@@ -111,16 +117,16 @@ class Player {
         this.y = Math.max(this.size, Math.min(canvasHeight - this.size, this.y));
 
         // Animação de pulso
-        this.pulseTimer += 0.1 * timeScale;
+        this.pulseTimer += 0.1 * dt;
         this.scale = 1 + Math.sin(this.pulseTimer) * 0.1;
 
         // Reduzir invulnerabilidade
         if (this.invulnerable > 0) {
-            this.invulnerable -= 1 * timeScale;
+            this.invulnerable -= 1 * dt;
         }
 
         // Ataque automático
-        this.attackTimer += 1 * timeScale;
+        this.attackTimer += 1 * dt;
         if (this.attackTimer >= this.attackSpeed) {
             this.attackTimer = 0;
             this.attack(enemies);
@@ -131,8 +137,7 @@ class Player {
             const proj = this.projectiles[i];
             if (!proj.active) continue;
 
-            proj.update(canvasWidth, canvasHeight); // Projéteis precisam de timeScale? Sim, idealmente.
-            // Mas Projectile.update não aceita timeScale. Vamos deixar assim por enquanto ou ajustar.
+            proj.update(canvasWidth, canvasHeight, dt);
 
             if (!proj.active) {
                 // Se desativou após update (saiu da tela etc), contabilizar erro
